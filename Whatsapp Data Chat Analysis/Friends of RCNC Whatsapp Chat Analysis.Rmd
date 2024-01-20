@@ -1,0 +1,393 @@
+---
+title: "Whatsapp Chat Analysis"
+author: "Kariuki"
+date: "1/19/2024"
+output:
+  word_document: default
+  html_document: default
+---
+
+
+## Introduction
+
++ In this chatpter I am going to deal with Whatsapp data analysis and visualization.Whatsap is a means of communicating in the modern world using phones and computers. Whatsapp is used in modern world as a mean of online help desk by most service companies. Most companies and individuals uses Whatsapp for purposes like project management , product advertisement , group communications, etc.The case study is for one of the "------" club group in  Nairobi-Kenya. 
+
++ I am going to restrict this topic to only text messages exchange using Whatsapp for our analysis.
+
++ Dowloading Whatsapp data from Adroid phones
++ The structure of Whatsapp chat data
++ Reading Whatsapp chat data using R
++ Visualizing Whatsapp chat data.
++ Message per day
++ Message per weekday
++ Radar charts
++ Messages per hour
++ Heat Map
++ Messages per Author
++ Emoji analysis 
++ Word analysis
+
+
+##### Objectives
+
+One should be able to download data from Whatsapp, Visualize the data download from whatsapp.
+
+Whatsapp uses a customized version of Extension Messaging and Presence Protocol , Whatsapp has more than 2 billion active users in more than 180 countries as of 2020.
+
+Whatsapp store all data in servers. It is possible to access this data using APIs exposed by whatsapp. 
+
+## Reading Whatsapp chat Data in R
+
+One of the ways to read Whatsapp chat data using R is with the help of the library . This library provides a function-rwa_read() to read the TXT file contaninig the Whatsapp chat data. The usage is shown as foolows.
+
+```{r echo=TRUE}
+#necessary libarries
+#install.packages("rwhatsapp")
+library(rwhatsapp)
+
+v_chats<-rwa_read("C:/Users/User/OneDrive/Desktop/Whatsapp Data Chat Analysis/WhatsApp Chat with Friends of RCNC (1).txt")
+# We can view the read data using the head() function as shown below
+
+head(v_chats,5)
+
+## Messages and calls are end -to-end encrypted . No one outside of this chat , not even Whatsapp, can read or listen to them.
+
+
+
+```
+
+
+
+## Visualizing Whatsapp chat data 
+
+Before we dive deeper into visualizations, we discuss how to extract some information from the data. For this code to work we need some extra libraries such as lubridate and dplyr as shown below.
+
+```{r echo=TRUE}
+#install.packages("lubridate")
+#install.packages("tidyverse")
+#install.packages("viridis")
+
+#Extracting some important information from the data available
+
+library(lubridate)
+library(tidyverse)
+library(viridis)
+v_chats<- v_chats %>%
+  mutate(message_date= date(time))%>%
+  mutate(message_month= month(time,label = TRUE))%>%
+  mutate(message_month= factor(message_month))%>%
+  mutate(message_weekday_number=wday(message_date))%>%
+  mutate(message_weekday_name= weekdays(message_date))%>%
+  mutate(message_weekday_name=factor(message_weekday_name))%>%
+  mutate(message_hour=hour(time))%>%
+  filter(!is.na(author))
+  
+```
+
+
+## Message Per Day
+
+The first message we are going to check is the number of messages per day.
+
+```{r echo=TRUE}
+
+v_chats %>%
+  group_by(message_month)%>%
+  count(message_date)%>%
+  ggplot(aes(x=message_date, y =n , fill= message_month))+ geom_bar(stat = "identity")+
+  scale_fill_viridis(discrete=TRUE)+
+  labs(x="Date", y ="Number of Message", fill = "Month")+
+  ggtitle("Messages per Day","Frequency of Messages Day\nGrouped by Month")+
+  theme_minimal()+
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+  
+
+```
+'
+September'23 was the month with most messages per day, followed by December'23. For September this was due to plans that were taking place and Dec people had much funs being a festival season. Start of January '24 the messages per day have reduced but there is anticipation of rise in chats as the club prepare for 2024 initiatives.
+
+## Message per Weekday
+
+Visualizing the messages per week days using bar-chart.
+
+```{r echo=TRUE}
+v_chats%>%
+  group_by(message_month,message_weekday_number,message_weekday_name)%>%
+  count()%>%
+  ggplot(aes(x=reorder(message_weekday_name,message_weekday_number),y=n,fill=message_month))+
+  geom_bar(stat = "identity")+
+  scale_x_discrete(labels=c("Monday"="Mon",
+                            "Tuesday"="Tue",
+                            "Wednesday"="Wen", 
+                            "Thursday"="Thu",
+                            "Friday"="Fri", 
+                            "Saturday"="Sat",
+                            "Sunday"="Sun"))+
+  scale_color_viridis(discrete = TRUE)+
+  labs(x="", y="Number of Messages", fill="Month")+
+  coord_flip()+
+  ggtitle("Message per Week Day"," # of Message/Week day/nGrouped by Month")+ theme_minimal()+
+  theme(legend.title = element_text(color= "blue", size=9, face="bold"),
+        legend.text = element_text(color="red",size = 7),
+        legend.position = "bottom",
+        legend.key.size = unit(0.3,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        axis.text.x = element_text(size = 7),
+        axis.text.y = element_text(size = 7),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 10))
+```
+
+We can see that in month of September Thursday and Friday were the days with most chats/messages. October most conversation was done on Monday.November most conversation were taking place in Wensday and Monday. While December was unique one with most conversation happening in Tuesday. New year 2024 , most conversation have started to happen on Monday but still with another one week to close the first month in year 2024.
+
+## Messages per Hour
+
+one can visualize these messages per hour and grouping by month and hour.Want to see how messages were exchanged in every month for every weekday in every hour.
+
+
+```{r echo=TRUE}
+v_weekdays<-c("Sun","Mon","Tue","Wen","Thu","Fri","Sat")
+names(v_weekdays)<-1:7
+v_chats%>%
+  group_by(message_month,message_weekday_number,message_weekday_name,message_hour)%>%
+  count()%>%
+  ggplot(aes(x=message_hour,y=n,fill=message_month))+
+  geom_bar(stat = "Identity")+
+  scale_fill_viridis(discrete = TRUE)+
+  labs(x="Hour", y = "Number of Messages",fill="Month")+
+  facet_wrap(~message_weekday_number,ncol = 7,
+             labeller = labeller(message_weekday_number=v_weekdays))+
+  ggtitle("Messages per Hour","# of Message/Hour/nGrouped by Month")+
+  theme_minimal()+
+  theme(legend.title = element_text(color="blue",size =9,face = "bold"),
+        legend.position = "bottom",
+        legend.key.size = unit(0.3,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        axis.text.x = element_text(size = 7,angle = 90),
+        axis.text.y = element_text(size = 7),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 10))
+
+
+
+```
+
+What clear is that most conversation happens around 5-10 hrs , taking into account in a day we have 24hrs. Saturday has the least number of messages per hour and also the whole day. Monday ,Tuesday and Friday top as the days with most messages per hour .January most conversation are taking place on Monday around 0-10 hrs.
+
+
+## Heat Map
+
+ One can visualize this data regarding messages per hour in the form of heat map. 
+ 
+```{r echo=TRUE}
+
+v_chats%>%
+  group_by(message_weekday_number,message_weekday_name,message_hour)%>%
+  count()%>%
+  ggplot(aes(x=message_hour,y=reorder(message_weekday_name,message_weekday_number)))+
+  geom_tile(aes(fill= n), color= "white",na.rm = TRUE)+ 
+  scale_fill_gradient(low="lightblue",high="blue")+
+  guides(fill=guide_legend(title = "Message Count"))+
+  labs(title = "Heat Map of Messages", subtitle = "By Day of Week and Hour",
+       x="Hour",y= "")+
+  theme_minimal()+
+  theme(legend.title = element_text(colour = "blue",size = 9,face = "bold"),
+        legend.text = element_text(color = "red",size = 7),
+        legend.position = "bottom",
+        legend.key.size = unit(0.3,"cm"),
+        legend.key.width = unit(0.3,"cm"),
+        axis.text.x = element_text(size = 7),
+        axis.text.y = element_text(size = 7),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+```
+ 
+Clear that Monday, Friday and Tuesday are the days of week with the most messages count at around 12hrs.
+
+ ## Messages per Author
+ Just diving deeper to see messages per author, per weekdays across all the months.
+ 
+```{r echo=TRUE}
+#install.packages("RColorBrewer")
+library(RColorBrewer)
+library(dplyr)
+library(ggplot2)
+
+threshold <- 4  # Set your minimum threshold here
+
+v_chats %>%
+  group_by(message_month, message_weekday_number, message_weekday_name, author) %>%
+  count() %>%
+  filter(n >= threshold) %>%  # Exclude authors with fewer than 'threshold' messages
+  ggplot(aes(x = reorder(author, n),
+             y = n,
+             fill = reorder(message_weekday_number, message_weekday_name))) +
+  geom_bar(stat = "Identity") +
+  scale_fill_manual(labels = c("Monday" = "Mon",
+                               "Tuesday" = "Tue",
+                               "Wednesday" = "Wen",
+                               "Thursday" = "Thus",
+                               "Friday" = "Fri",
+                               "Saturday" = "Sat",
+                               "Sunday" = "Sun"),
+                    values = brewer.pal(8, "Dark2")) +
+  facet_wrap(~message_month) +
+  labs(x = "", y = "Number of Messages", fill = "Week Day") +
+  coord_flip() +
+  ggtitle("Message per Author", "Number of messages/Author/nGrouped by week Day") +
+  theme_minimal() +
+  theme(legend.title = element_text(colour = "blue", size = 9, face = "bold"),
+        legend.text = element_text(color = "red", size = 7),
+        legend.position = "bottom",
+        legend.key.size = unit(0.3, "cm"),
+        legend.key.width = unit(0.3, "cm"),
+        axis.text.x = element_text(size = 7),
+        axis.text.y = element_blank(),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 10))
+
+
+```
+ 
+What you are able to see is the number of messages per Author. The threshold shows authors with more than 4 text/messages in last 5 months. These are likely to be leaders of these clubs.
+
+Creating similar thing but now using a Heat map- Messages per author per weekday.
+
+```{r echo=TRUE}
+
+# Set your minimum threshold here
+threshold <- 4  
+
+v_chats %>%
+  group_by(message_weekday_number, message_weekday_name, author) %>%
+  count() %>%
+  filter(n >= threshold) %>%  # Exclude authors with fewer than 'threshold' messages
+  ggplot(aes(x = author, y = reorder(message_weekday_name, message_weekday_number))) +
+  geom_tile(aes(fill = n), color = "white", na.rm = TRUE) + 
+  scale_fill_gradient(low = "lightblue", high = "blue") +
+  scale_y_discrete(labels = c("Monday" = "Mon",
+                              "Tuesday" = "Tue",
+                              "Wednesday" = "Wen",
+                              "Thursday" = "Thus",
+                              "Friday" = "Fri",
+                              "Saturday" = "Sat",
+                              "Sunday" = "Sun")) +
+  guides(fill = guide_legend(title = "Message Count")) +
+  labs(title = "Heat Map of Messages", subtitle = "By Day of Week and Author",
+       x = "Hour", y = "") +
+  theme_minimal() +
+  theme(legend.title = element_text(colour = "blue", size = 9, face = "bold"),
+        legend.text = element_text(color = "red", size = 7),
+        legend.position = "bottom",
+        legend.key.size = unit(0.3, "cm"),
+        legend.key.width = unit(0.3, "cm"),
+        axis.text.x = element_text(size = 7, angle = 45, hjust = 1),  # Adjust angle and hjust
+        axis.text.y = element_text(size = 7),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "lightyellow"))
+```
+There are two authors with highest number of chats/ messages on monday. 
+
+
+## Emoji Analysis
+
+Whatsapp data provides two fields with informations on the emojis used in the chats. These fields are emoji and so a lot of analysis is possible on the emoji used in the chats.
+
+The main purpose of this data preparation is to get images of the emojis as the emojis are coded in whatsapp chat data.
+
+
+```{r echo=TRUE}
+
+head(v_chats[,c("emoji","emoji_name")]%>%
+       filter(!is.null(emoji_name))%>%
+       filter(emoji_name !="NULL"))
+## clean data 
+
+v_Emojis <- v_chats %>%
+unnest(c(emoji, emoji_name)) %>%
+mutate(emoji = str_sub(emoji, end = 1)) %>%
+mutate(emoji_name = str_remove(emoji_name, ":.*")) %>%
+mutate(emoji_url = map_chr(emoji,
+~paste0("https://abs.twimg.com/emoji/v2/72x72/",
+as.hexmode(utf8ToInt(.x)), ".png"))
+) %>%
+filter(!is.null(emoji_name)) %>%
+filter(emoji_name != "NULL")
+
+head(v_Emojis)
+
+
+# time author text source
+
+head(v_Emojis$emoji_url)
+
+```
+
+
+## Emoji Visualizations
+
+```{r echo=TRUE}
+# Install the ggimage package if you haven't already
+#install.packages("ggimage")
+
+# Load the ggimage package
+library(ggimage)
+library(ggplot2)
+library(ggtext)
+
+# Set your threshold here
+threshold <- 20  
+
+v_Emojis %>%
+  count(emoji, emoji_name, emoji_url) %>%
+  arrange(desc(n)) %>%
+  filter(row_number() <= threshold) %>%  # Keep only the top 8 emojis
+  ggplot(aes(x = reorder(emoji_name, n), y = n)) +
+  geom_col(aes(fill = n), show.legend = FALSE, width = 0.2) +
+  geom_point(aes(color = n), show.legend = FALSE, size = 3) +
+  geom_image(aes(image = emoji_url), size = 0.05) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  scale_color_gradient(low = "black", high = "brown") +
+  coord_flip() +
+  labs(title = "Top 8 Emojis used in Chats", subtitle = "Emoji presents",
+       x = "", y = "Number of times\nEmoji was used") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 5),
+    axis.title = element_text(size = 9),
+    plot.title = element_text(size = 18),
+    plot.subtitle = element_text(size = 10)
+  )
+
+```
+
+
+Here are the top 5 emojis used by authors in this group
+
+* Face with tears of joy
+* Check mark button
+* Partying face
+* Rolling on floor laughing 
+* Beaming face with smilling face
+
+
+## Conclusion 
+
+The analysis of WhatsApp data provides a wealth of information.There are hardly any products available in the world as on date (end of 2024) for analysis of WhatsApp data. So, this is an areawhere useful products could be created, and businesses could beformed around the same.
+
+
+
+
